@@ -3,6 +3,7 @@
 *.la
 *.lo
 
+logs/*
 autom4te.cache
 .deps
 

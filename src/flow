@@ -1,0 +1,1 @@
+srecv_process -> parse_instance_msg -> parse_method -> init_client -> stratum_send_diff

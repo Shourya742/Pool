@@ -1458,6 +1458,8 @@ static bool auth_stratum(ckpool_t *ckp, connsock_t *cs, proxy_instance_t *proxi)
 			"id", 42,
 			"method", "mining.authorize",
 			"params", proxi->auth, proxi->pass);
+
+	LOGWARNING("HERE>>>>>2");
 	ret = send_json_msg(cs, req);
 	json_decref(req);
 	if (!ret) {

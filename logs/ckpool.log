@@ -1,0 +1,36 @@
+[2024-09-20 14:06:13.057] Setting maxclients to 943718 due to max open file limit of 1048576
+[2024-09-20 14:06:13.068] ckpool generator starting
+[2024-09-20 14:06:13.068] ckpool stratifier starting
+[2024-09-20 14:06:13.068] ckpool connector starting
+[2024-09-20 14:06:13.068] Failed to connect socket to localhost:8332 !
+[2024-09-20 14:06:13.068] CRITICAL: No bitcoinds active!
+[2024-09-20 14:06:13.068] ckpool connector ready
+[2024-09-20 14:06:16.366] Process ckpool received signal 2, shutting down
+[2024-09-20 14:06:23.646] File /tmp/ckpool/main.pid exists
+[2024-09-20 14:06:23.646] Setting maxclients to 943718 due to max open file limit of 1048576
+[2024-09-20 14:06:23.646] ckpool generator starting
+[2024-09-20 14:06:23.646] ckpool stratifier starting
+[2024-09-20 14:06:23.646] ckpool connector starting
+[2024-09-20 14:06:23.646] ckpool connector ready
+[2024-09-20 14:06:24.013] Server alive: localhost:18332
+[2024-09-20 14:06:24.013] ckpool generator ready
+[2024-09-20 14:06:24.013] Connected to bitcoind: localhost:18332
+[2024-09-20 14:06:24.050] Server alive: localhost:18332
+[2024-09-20 14:06:24.050] BTC testnet donation address valid tb1q5fyv7tue73y4zxezh2c685qpwx0cfngfxlrgxh
+[2024-09-20 14:06:24.051] ckpool stratifier ready
+[2024-09-20 14:06:24.052] ZMQ connected to tcp://localhost:28332
+[2024-09-20 14:06:24.052] Stored local workbase with 11 transactions
+[2024-09-20 14:06:24.053] Coinbase transaction confirmed valid
+[2024-09-20 14:06:24.053] Mining solo to any incoming valid BTC address username
+[2024-09-20 14:06:24.053] Network diff set to 1.0
+[2024-09-20 14:06:24.053] Block hash changed to 0000000026aa77823e4ffd09d71c41b0c88cca233d4bfcb830a8ac0e334936c9
+[2024-09-20 14:06:24.054] Stored local workbase with 11 transactions
+[2024-09-20 14:06:24.278] Stored local workbase with 11 transactions
+[2024-09-20 14:06:24.278] Block hash changed to 0000000000001f843fb00102bce4cdc2ec1afc06e13a84039978d65cd748eb67
+[2024-09-20 14:06:24.279] Stored local workbase with 11 transactions
+[2024-09-20 14:06:25.052] Pool:{"runtime": 1, "lastupdate": 1726821385, "Users": 0, "Workers": 0, "Idle": 0, "Disconnected": 0}
+[2024-09-20 14:06:25.052] Pool:{"hashrate1m": "0", "hashrate5m": "0", "hashrate15m": "0", "hashrate1hr": "0", "hashrate6hr": "0", "hashrate1d": "0", "hashrate7d": "0"}
+[2024-09-20 14:06:25.052] Pool:{"diff": 0.0, "accepted": 0, "rejected": 0, "bestshare": 0, "SPS1m": 0.0, "SPS5m": 0.0, "SPS15m": 0.0, "SPS1h": 0.0}
+[2024-09-20 14:06:27.172] Stored local workbase with 11 transactions
+[2024-09-20 14:06:27.172] Block hash changed to 00000000c06e8fe06b078c20dd2af83cc3b6624463e242bc0a65411667235d01
+[2024-09-20 14:06:27.174] Stored local workbase with 11 transactions

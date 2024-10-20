@@ -36,13 +36,15 @@ ckpool_t *global_ckp;
 
 static bool open_logfile(ckpool_t *ckp)
 {
-	if (ckp->logfd > 0) {
+	if (ckp->logfd > 0)
+	{
 		flock(ckp->logfd, LOCK_EX);
 		fflush(ckp->logfp);
 		Close(ckp->logfd);
 	}
 	ckp->logfp = fopen(ckp->logfilename, "ae");
-	if (unlikely(!ckp->logfp)) {
+	if (unlikely(!ckp->logfp))
+	{
 		LOGEMERG("Failed to make open log file %s", ckp->logfilename);
 		return false;
 	}
@@ -72,7 +74,8 @@ static void proclog(ckpool_t *ckp, char *msg)
 
 	/* Reopen log file every minute, allowing us to move/rename it and
 	 * create a new logfile */
-	if (log_t > ckp->lastopen_t + 60) {
+	if (log_t > ckp->lastopen_t + 60)
+	{
 		LOGDEBUG("Reopening logfile");
 		open_logfile(ckp);
 	}
@@ -117,11 +120,13 @@ void logmsg(int loglevel, const char *fmt, ...)
 	VASPRINTF(&buf, fmt, ap);
 	va_end(ap);
 
-	if (unlikely(!buf)) {
+	if (unlikely(!buf))
+	{
 		fprintf(stderr, "Null buffer sent to logmsg\n");
 		return;
 	}
-	if (unlikely(!strlen(buf))) {
+	if (unlikely(!strlen(buf)))
+	{
 		fprintf(stderr, "Zero length string sent to logmsg\n");
 		goto out;
 	}
@@ -131,7 +136,8 @@ void logmsg(int loglevel, const char *fmt, ...)
 	else
 		ASPRINTF(&log, "%s %s\n", stamp, buf);
 
-	if (unlikely(!global_ckp->console_logger)) {
+	if (unlikely(!global_ckp->console_logger))
+	{
 		fprintf(stderr, "%s", log);
 		goto out_free;
 	}
@@ -155,7 +161,8 @@ static void *ckmsg_queue(void *arg)
 	rename_proc(ckmsgq->name);
 	ckmsgq->active = true;
 
-	while (42) {
+	while (42)
+	{
 		ckmsg_t *msg;
 		tv_t now;
 		ts_t abs;
@@ -207,7 +214,8 @@ ckmsgq_t *create_ckmsgqs(ckpool_t *ckp, const char *name, const void *func, cons
 	mutex_init(lock);
 	cond_init(cond);
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++)
+	{
 		snprintf(ckmsgq[i].name, 15, "%.6s%x", name, i);
 		ckmsgq[i].func = func;
 		ckmsgq[i].ckp = ckp;
@@ -225,7 +233,8 @@ bool _ckmsgq_add(ckmsgq_t *ckmsgq, void *data, const char *file, const char *fun
 {
 	ckmsg_t *msg;
 
-	if (unlikely(!ckmsgq)) {
+	if (unlikely(!ckmsgq))
+	{
 		LOGWARNING("Sending messages to no queue from %s %s:%d", file, func, line);
 		/* Discard data if we're unlucky enough to be sending it to
 		 * msg queues not set up during start up */
@@ -278,17 +287,20 @@ static void *unix_receiver(void *arg)
 	rename_proc(qname);
 	pthread_detach(pthread_self());
 
-	while (42) {
+	while (42)
+	{
 		unix_msg_t *umsg;
 		char *buf;
 
 		sockd = accept(rsockd, NULL, NULL);
-		if (unlikely(sockd < 0)) {
+		if (unlikely(sockd < 0))
+		{
 			LOGEMERG("Failed to accept on %s socket, exiting", qname);
 			break;
 		}
 		buf = recv_unix_msg(sockd);
-		if (unlikely(!buf)) {
+		if (unlikely(!buf))
+		{
 			Close(sockd);
 			LOGWARNING("Failed to get message on %s socket", qname);
 			continue;
@@ -313,7 +325,8 @@ unix_msg_t *get_unix_msg(proc_instance_t *pi)
 	unix_msg_t *umsg;
 
 	mutex_lock(&pi->rmsg_lock);
-	if (!pi->unix_msgs) {
+	if (!pi->unix_msgs)
+	{
 		tv_t now;
 		ts_t abs;
 
@@ -355,7 +368,8 @@ static int pid_wait(const pid_t pid, const int ms)
 	int ret;
 
 	tv_time(&start);
-	do {
+	do
+	{
 		ret = kill_pid(pid, 0);
 		if (ret)
 			break;
@@ -388,80 +402,115 @@ static void *listener(void *arg)
 retry:
 	dealloc(buf);
 	sockd = accept(us->sockd, NULL, NULL);
-	if (sockd < 0) {
+	if (sockd < 0)
+	{
 		LOGERR("Failed to accept on socket in listener");
 		goto out;
 	}
 
 	buf = recv_unix_msg(sockd);
-	if (!buf) {
+	if (!buf)
+	{
 		LOGWARNING("Failed to get message in listener");
 		send_unix_msg(sockd, "failed");
-	} else if (buf[0] == '{') {
+	}
+	else if (buf[0] == '{')
+	{
 		/* Any JSON messages received are for the RPC API to handle */
 		api_message(ckp, &buf, &sockd);
-	} else if (cmdmatch(buf, "shutdown")) {
+	}
+	else if (cmdmatch(buf, "shutdown"))
+	{
 		LOGWARNING("Listener received shutdown message, terminating ckpool");
 		send_unix_msg(sockd, "exiting");
 		goto out;
-	} else if (cmdmatch(buf, "ping")) {
+	}
+	else if (cmdmatch(buf, "ping"))
+	{
 		LOGDEBUG("Listener received ping request");
 		send_unix_msg(sockd, "pong");
-	} else if (cmdmatch(buf, "loglevel")) {
+	}
+	else if (cmdmatch(buf, "loglevel"))
+	{
 		int loglevel;
 
-		if (sscanf(buf, "loglevel=%d", &loglevel) != 1) {
+		if (sscanf(buf, "loglevel=%d", &loglevel) != 1)
+		{
 			LOGWARNING("Failed to parse loglevel message %s", buf);
 			send_unix_msg(sockd, "Failed");
-		} else if (loglevel < LOG_EMERG || loglevel > LOG_DEBUG) {
+		}
+		else if (loglevel < LOG_EMERG || loglevel > LOG_DEBUG)
+		{
 			LOGWARNING("Invalid loglevel %d sent", loglevel);
 			send_unix_msg(sockd, "Invalid");
-		} else {
+		}
+		else
+		{
 			ckp->loglevel = loglevel;
 			send_unix_msg(sockd, "success");
 		}
-	} else if (cmdmatch(buf, "getxfd")) {
+	}
+	else if (cmdmatch(buf, "getxfd"))
+	{
 		int fdno = -1;
 
 		sscanf(buf, "getxfd%d", &fdno);
 		connector_send_fd(ckp, fdno, sockd);
-	} else if (cmdmatch(buf, "accept")) {
+	}
+	else if (cmdmatch(buf, "accept"))
+	{
 		LOGWARNING("Listener received accept message, accepting clients");
 		send_proc(ckp->connector, "accept");
 		send_unix_msg(sockd, "accepting");
-	} else if (cmdmatch(buf, "reject")) {
+	}
+	else if (cmdmatch(buf, "reject"))
+	{
 		LOGWARNING("Listener received reject message, rejecting clients");
 		send_proc(ckp->connector, "reject");
 		send_unix_msg(sockd, "rejecting");
-	} else if (cmdmatch(buf, "reconnect")) {
+	}
+	else if (cmdmatch(buf, "reconnect"))
+	{
 		LOGWARNING("Listener received request to send reconnect to clients");
 		send_proc(ckp->stratifier, buf);
 		send_unix_msg(sockd, "reconnecting");
-	} else if (cmdmatch(buf, "restart")) {
+	}
+	else if (cmdmatch(buf, "restart"))
+	{
 		LOGWARNING("Listener received restart message, attempting handover");
 		send_unix_msg(sockd, "restarting");
-		if (!fork()) {
-			if (!ckp->handover) {
+		if (!fork())
+		{
+			if (!ckp->handover)
+			{
 				ckp->initial_args[ckp->args++] = strdup("-H");
 				ckp->initial_args[ckp->args] = NULL;
 			}
 			execv(ckp->initial_args[0], (char *const *)ckp->initial_args);
 		}
-	} else if (cmdmatch(buf, "stratifierstats")) {
+	}
+	else if (cmdmatch(buf, "stratifierstats"))
+	{
 		LOGDEBUG("Listener received stratifierstats request");
 		msg = stratifier_stats(ckp, ckp->sdata);
 		send_unix_msg(sockd, msg);
 		dealloc(msg);
-	} else if (cmdmatch(buf, "connectorstats")) {
+	}
+	else if (cmdmatch(buf, "connectorstats"))
+	{
 		LOGDEBUG("Listener received connectorstats request");
 		msg = connector_stats(ckp->cdata, 0);
 		send_unix_msg(sockd, msg);
 		dealloc(msg);
-	} else if (cmdmatch(buf, "resetshares")) {
+	}
+	else if (cmdmatch(buf, "resetshares"))
+	{
 		LOGWARNING("Resetting best shares");
 		send_proc(ckp->stratifier, buf);
 		send_unix_msg(sockd, "resetting");
-	} else {
+	}
+	else
+	{
 		LOGINFO("Listener received unhandled message: %s", buf);
 		send_unix_msg(sockd, "unknown");
 	}
@@ -490,20 +539,23 @@ int set_sendbufsize(ckpool_t *ckp, const int fd, const int len)
 	setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &opt, optlen);
 	getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &opt, &optlen);
 	opt /= 2;
-	if (opt < len) {
+	if (opt < len)
+	{
 		LOGDEBUG("Failed to set desired sendbufsize of %d unprivileged, only got %d",
-			 len, opt);
+				 len, opt);
 		optlen = sizeof(opt);
 		opt = len * 4 / 3;
 		setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &opt, optlen);
 		getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &opt, &optlen);
 		opt /= 2;
 	}
-	if (opt < len) {
+	if (opt < len)
+	{
 		LOGNOTICE("Failed to increase sendbufsize to %d, increase wmem_max or start %s privileged if using a remote btcd",
-			   len, ckp->name);
+				  len, ckp->name);
 		ckp->wmem_warn = true;
-	} else
+	}
+	else
 		LOGDEBUG("Increased sendbufsize to %d of desired %d", opt, len);
 	return opt;
 }
@@ -518,20 +570,23 @@ int set_recvbufsize(ckpool_t *ckp, const int fd, const int len)
 	setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &opt, optlen);
 	getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &opt, &optlen);
 	opt /= 2;
-	if (opt < len) {
+	if (opt < len)
+	{
 		LOGDEBUG("Failed to set desired rcvbufsiz of %d unprivileged, only got %d",
-			 len, opt);
+				 len, opt);
 		optlen = sizeof(opt);
 		opt = len * 4 / 3;
 		setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &opt, optlen);
 		getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &opt, &optlen);
 		opt /= 2;
 	}
-	if (opt < len) {
+	if (opt < len)
+	{
 		LOGNOTICE("Failed to increase rcvbufsiz to %d, increase rmem_max or start %s privileged if using a remote btcd",
-			   len, ckp->name);
+				  len, ckp->name);
 		ckp->rmem_warn = true;
-	} else
+	}
+	else
 		LOGDEBUG("Increased rcvbufsiz to %d of desired %d", opt, len);
 	return opt;
 }
@@ -542,7 +597,8 @@ int set_recvbufsize(ckpool_t *ckp, const int fd, const int len)
  * only unprocessed data of bufofs length. */
 static void clear_bufline(connsock_t *cs)
 {
-	if (unlikely(!cs->buf)) {
+	if (unlikely(!cs->buf))
+	{
 		socklen_t optlen = sizeof(cs->rcvbufsiz);
 
 		cs->buf = ckzalloc(PAGESIZE);
@@ -550,7 +606,9 @@ static void clear_bufline(connsock_t *cs)
 		getsockopt(cs->fd, SOL_SOCKET, SO_RCVBUF, &cs->rcvbufsiz, &optlen);
 		cs->rcvbufsiz /= 2;
 		LOGDEBUG("connsock rcvbufsiz detected as %d", cs->rcvbufsiz);
-	} else if (cs->buflen) {
+	}
+	else if (cs->buflen)
+	{
 		memmove(cs->buf, cs->buf + cs->bufofs, cs->buflen);
 		memset(cs->buf + cs->buflen, 0, cs->bufofs);
 		cs->bufofs = cs->buflen;
@@ -565,10 +623,12 @@ static void add_buflen(ckpool_t *ckp, connsock_t *cs, const char *readbuf, const
 	int buflen;
 
 	buflen = round_up_page(cs->bufofs + len + 1);
-	while (cs->bufsize < buflen) {
+	while (cs->bufsize < buflen)
+	{
 		char *newbuf = realloc(cs->buf, buflen);
 
-		if (likely(newbuf)) {
+		if (likely(newbuf))
+		{
 			cs->bufsize = buflen;
 			cs->buf = newbuf;
 			break;
@@ -595,9 +655,11 @@ static int recv_available(ckpool_t *ckp, connsock_t *cs)
 	char readbuf[PAGESIZE];
 	int len = 0, ret;
 
-	do {
+	do
+	{
 		ret = recv(cs->fd, readbuf, PAGESIZE - 4, MSG_DONTWAIT);
-		if (ret > 0) {
+		if (ret > 0)
+		{
 			add_buflen(ckp, cs, readbuf, ret);
 			len += ret;
 		}
@@ -626,13 +688,16 @@ int read_socket_line(connsock_t *cs, float *timeout)
 
 	tv_time(&start);
 
-	while (!eom) {
-		if (unlikely(cs->fd < 0)) {
+	while (!eom)
+	{
+		if (unlikely(cs->fd < 0))
+		{
 			ret = -1;
 			goto out;
 		}
 
-		if (*timeout < 0) {
+		if (*timeout < 0)
+		{
 			if (quiet)
 				LOGINFO("Timed out in read_socket_line");
 			else
@@ -641,7 +706,8 @@ int read_socket_line(connsock_t *cs, float *timeout)
 			goto out;
 		}
 		ret = wait_read_select(cs->fd, *timeout);
-		if (ret < 1) {
+		if (ret < 1)
+		{
 			if (quiet)
 				LOGINFO("Select %s in read_socket_line", !ret ? "timed out" : "failed");
 			else
@@ -649,7 +715,8 @@ int read_socket_line(connsock_t *cs, float *timeout)
 			goto out;
 		}
 		ret = recv_available(ckp, cs);
-		if (ret < 1) {
+		if (ret < 1)
+		{
 			/* If we have done wait_read_select there should be
 			 * something to read and if we get nothing it means the
 			 * socket is closed. */
@@ -675,7 +742,8 @@ int read_socket_line(connsock_t *cs, float *timeout)
 		cs->bufofs = 0;
 	*eom = '\0';
 out:
-	if (ret < 0) {
+	if (ret < 0)
+	{
 		empty_buffer(cs);
 		dealloc(cs->buf);
 	}
@@ -690,7 +758,8 @@ void _queue_proc(proc_instance_t *pi, const char *msg, const char *file, const c
 {
 	unix_msg_t *umsg;
 
-	if (unlikely(!msg || !strlen(msg))) {
+	if (unlikely(!msg || !strlen(msg)))
+	{
 		LOGWARNING("Null msg passed to queue_proc from %s %s:%d", file, func, line);
 		return;
 	}
@@ -707,21 +776,24 @@ void _queue_proc(proc_instance_t *pi, const char *msg, const char *file, const c
 /* Send a single message to a process instance and retrieve the response, then
  * close the socket. */
 char *_send_recv_proc(const proc_instance_t *pi, const char *msg, int writetimeout, int readtimedout,
-		      const char *file, const char *func, const int line)
+					  const char *file, const char *func, const int line)
 {
 	char *path = pi->us.path, *buf = NULL;
 	int sockd;
 
-	if (unlikely(!path || !strlen(path))) {
+	if (unlikely(!path || !strlen(path)))
+	{
 		LOGERR("Attempted to send message %s to null path in send_proc", msg ? msg : "");
 		goto out;
 	}
-	if (unlikely(!msg || !strlen(msg))) {
+	if (unlikely(!msg || !strlen(msg)))
+	{
 		LOGERR("Attempted to send null message to socket %s in send_proc", path);
 		goto out;
 	}
 	sockd = open_unix_client(path);
-	if (unlikely(sockd < 0)) {
+	if (unlikely(sockd < 0))
+	{
 		LOGWARNING("Failed to open socket %s in send_recv_proc", path);
 		goto out;
 	}
@@ -740,7 +812,7 @@ static const char *rpc_method(const char *rpc_req)
 {
 	const char *ptr = strchr(rpc_req, ':');
 	if (ptr)
-		return ptr+1;
+		return ptr + 1;
 	return rpc_req;
 }
 
@@ -760,104 +832,119 @@ static json_t *_json_rpc_call(connsock_t *cs, const char *rpc_req, const bool in
 	/* Serialise all calls in case we use cs from multiple threads */
 	cksem_wait(&cs->sem);
 	cs->fd = connect_socket(cs->url, cs->port);
-	if (unlikely(cs->fd < 0)) {
+	if (unlikely(cs->fd < 0))
+	{
 		ASPRINTF(&warning, "Unable to connect socket to %s:%s in %s", cs->url, cs->port, __func__);
 		goto out;
 	}
-	if (unlikely(!cs->url)) {
+	if (unlikely(!cs->url))
+	{
 		ASPRINTF(&warning, "No URL in %s", __func__);
 		goto out;
 	}
-	if (unlikely(!cs->port)) {
+	if (unlikely(!cs->port))
+	{
 		ASPRINTF(&warning, "No port in %s", __func__);
 		goto out;
 	}
-	if (unlikely(!cs->auth)) {
+	if (unlikely(!cs->auth))
+	{
 		ASPRINTF(&warning, "No auth in %s", __func__);
 		goto out;
 	}
-	if (unlikely(!rpc_req)) {
+	if (unlikely(!rpc_req))
+	{
 		ASPRINTF(&warning, "Null rpc_req passed to %s", __func__);
 		goto out;
 	}
 	len = strlen(rpc_req);
-	if (unlikely(!len)) {
+	if (unlikely(!len))
+	{
 		ASPRINTF(&warning, "Zero length rpc_req passed to %s", __func__);
 		goto out;
 	}
 	http_req = ckalloc(len + 256); // Leave room for headers
 	sprintf(http_req,
-		 "POST / HTTP/1.1\n"
-		 "Authorization: Basic %s\n"
-		 "Host: %s:%s\n"
-		 "Content-type: application/json\n"
-		 "Content-Length: %d\n\n%s",
-		 cs->auth, cs->url, cs->port, len, rpc_req);
+			"POST / HTTP/1.1\n"
+			"Authorization: Basic %s\n"
+			"Host: %s:%s\n"
+			"Content-type: application/json\n"
+			"Content-Length: %d\n\n%s",
+			cs->auth, cs->url, cs->port, len, rpc_req);
 
 	len = strlen(http_req);
 	tv_time(&stt_tv);
 	ret = write_socket(cs->fd, http_req, len);
-	if (ret != len) {
+	if (ret != len)
+	{
 		tv_time(&fin_tv);
 		elapsed = tvdiff(&fin_tv, &stt_tv);
 		ASPRINTF(&warning, "Failed to write to socket in %s (%.10s...) %.3fs",
-			 __func__, rpc_method(rpc_req), elapsed);
+				 __func__, rpc_method(rpc_req), elapsed);
 		goto out_empty;
 	}
 	ret = read_socket_line(cs, &timeout);
-	if (ret < 1) {
+	if (ret < 1)
+	{
 		tv_time(&fin_tv);
 		elapsed = tvdiff(&fin_tv, &stt_tv);
 		ASPRINTF(&warning, "Failed to read socket line in %s (%.10s...) %.3fs",
-			 __func__, rpc_method(rpc_req), elapsed);
+				 __func__, rpc_method(rpc_req), elapsed);
 		goto out_empty;
 	}
-	if (strncasecmp(cs->buf, "HTTP/1.1 200 OK", 15)) {
+	if (strncasecmp(cs->buf, "HTTP/1.1 200 OK", 15))
+	{
 		tv_time(&fin_tv);
 		elapsed = tvdiff(&fin_tv, &stt_tv);
 		ASPRINTF(&warning, "HTTP response to (%.10s...) %.3fs not ok: %s",
-			 rpc_method(rpc_req), elapsed, cs->buf);
+				 rpc_method(rpc_req), elapsed, cs->buf);
 		timeout = 0;
 		/* Look for a json response if there is one */
-		while (read_socket_line(cs, &timeout) > 0) {
+		while (read_socket_line(cs, &timeout) > 0)
+		{
 			timeout = 0;
 			if (*cs->buf != '{')
 				continue;
 			free(warning);
 			/* Replace the warning with the json response */
 			ASPRINTF(&warning, "JSON response to (%.10s...) %.3fs not ok: %s",
-				 rpc_method(rpc_req), elapsed, cs->buf);
+					 rpc_method(rpc_req), elapsed, cs->buf);
 			break;
 		}
 		goto out_empty;
 	}
-	do {
+	do
+	{
 		ret = read_socket_line(cs, &timeout);
-		if (ret < 1) {
+		if (ret < 1)
+		{
 			tv_time(&fin_tv);
 			elapsed = tvdiff(&fin_tv, &stt_tv);
 			ASPRINTF(&warning, "Failed to read http socket lines in %s (%.10s...) %.3fs",
-				 __func__, rpc_method(rpc_req), elapsed);
+					 __func__, rpc_method(rpc_req), elapsed);
 			goto out_empty;
 		}
 	} while (strncmp(cs->buf, "{", 1));
 	tv_time(&fin_tv);
 	elapsed = tvdiff(&fin_tv, &stt_tv);
-	if (elapsed > 5.0) {
+	if (elapsed > 5.0)
+	{
 		ASPRINTF(&warning, "HTTP socket read+write took %.3fs in %s (%.10s...)",
-			 elapsed, __func__, rpc_method(rpc_req));
+				 elapsed, __func__, rpc_method(rpc_req));
 	}
 
 	val = json_loads(cs->buf, 0, &err_val);
-	if (!val) {
+	if (!val)
+	{
 		ASPRINTF(&warning, "JSON decode (%.10s...) failed(%d): %s",
-			 rpc_method(rpc_req), err_val.line, err_val.text);
+				 rpc_method(rpc_req), err_val.line, err_val.text);
 	}
 out_empty:
 	empty_socket(cs->fd);
 	empty_buffer(cs);
 out:
-	if (warning) {
+	if (warning)
+	{
 		if (info_only)
 			LOGINFO("%s", warning);
 		else
@@ -893,9 +980,10 @@ void json_rpc_msg(connsock_t *cs, const char *rpc_req)
 
 static void terminate_oldpid(const ckpool_t *ckp, proc_instance_t *pi, const pid_t oldpid)
 {
-	if (!ckp->killold) {
+	if (!ckp->killold)
+	{
 		quit(1, "Process %s pid %d still exists, start ckpool with -H to get a handover or -k if you wish to kill it",
-				pi->processname, oldpid);
+			 pi->processname, oldpid);
 	}
 	LOGNOTICE("Terminating old process %s pid %d", pi->processname, oldpid);
 	if (kill_pid(oldpid, 15))
@@ -904,7 +992,7 @@ static void terminate_oldpid(const ckpool_t *ckp, proc_instance_t *pi, const pid
 	if (pid_wait(oldpid, 500))
 		return;
 	LOGWARNING("Old process %s pid %d failed to respond to terminate request, killing",
-			pi->processname, oldpid);
+			   pi->processname, oldpid);
 	if (kill_pid(oldpid, 9) || !pid_wait(oldpid, 3000))
 		quit(1, "Unable to kill old process %s pid %d", pi->processname, oldpid);
 }
@@ -916,24 +1004,28 @@ bool _send_json_msg(connsock_t *cs, const json_t *json_msg, const char *file, co
 	int len, sent;
 	char *s;
 
-	if (unlikely(!json_msg)) {
+	if (unlikely(!json_msg))
+	{
 		LOGWARNING("Empty json msg in send_json_msg from %s %s:%d", file, func, line);
 		goto out;
 	}
 	s = json_dumps(json_msg, JSON_ESCAPE_SLASH | JSON_EOL);
-	if (unlikely(!s)) {
+	if (unlikely(!s))
+	{
 		LOGWARNING("Empty json dump in send_json_msg from %s %s:%d", file, func, line);
 		goto out;
 	}
 	LOGDEBUG("Sending json msg: %s", s);
 	len = strlen(s);
-	if (unlikely(!len)) {
+	if (unlikely(!len))
+	{
 		LOGWARNING("Zero length string in send_json_msg from %s %s:%d", file, func, line);
 		goto out;
 	}
 	sent = write_socket(cs->fd, s, len);
 	dealloc(s);
-	if (sent != len) {
+	if (sent != len)
+	{
 		LOGNOTICE("Failed to send %d bytes sent %d in send_json_msg", len, sent);
 		goto out;
 	}
@@ -953,7 +1045,8 @@ static json_t *json_result(json_t *val)
 	 * (null) and only handle lack of result */
 	if (json_is_null(res_val))
 		res_val = NULL;
-	else if (!res_val) {
+	else if (!res_val)
+	{
 		char *ss;
 
 		err_val = json_object_get(val, "error");
@@ -985,7 +1078,8 @@ json_t *json_msg_result(const char *msg, json_t **res_val, json_t **err_val)
 
 	*res_val = NULL;
 	val = json_loads(msg, 0, &err);
-	if (!val) {
+	if (!val)
+	{
 		LOGWARNING("Json decode failed(%d): %s", err.line, err.text);
 		goto out;
 	}
@@ -1002,13 +1096,15 @@ static bool write_pid(ckpool_t *ckp, const char *path, proc_instance_t *pi, cons
 {
 	FILE *fp;
 
-	if (ckp->handover && oldpid && !pid_wait(oldpid, 500)) {
+	if (ckp->handover && oldpid && !pid_wait(oldpid, 500))
+	{
 		LOGWARNING("Old process pid %d failed to shutdown cleanly, terminating", oldpid);
 		terminate_oldpid(ckp, pi, oldpid);
 	}
 
 	fp = fopen(path, "we");
-	if (!fp) {
+	if (!fp)
+	{
 		LOGERR("Failed to open file %s", path);
 		return false;
 	}
@@ -1088,7 +1184,7 @@ static void sighandler(const int sig)
 	signal(sig, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
 	LOGWARNING("Process %s received signal %d, shutting down",
-		   ckp->name, sig);
+			   ckp->name, sig);
 
 	cancel_pthread(&ckp->pth_listener);
 	exit(0);
@@ -1100,11 +1196,13 @@ static bool _json_get_string(char **store, const json_t *entry, const char *res)
 	const char *buf;
 
 	*store = NULL;
-	if (!entry || json_is_null(entry)) {
+	if (!entry || json_is_null(entry))
+	{
 		LOGDEBUG("Json did not find entry %s", res);
 		goto out;
 	}
-	if (!json_is_string(entry)) {
+	if (!json_is_string(entry))
+	{
 		LOGWARNING("Json entry %s is not a string", res);
 		goto out;
 	}
@@ -1126,7 +1224,8 @@ static void json_get_configstring(char **store, const json_t *val, const char *r
 {
 	bool ret = _json_get_string(store, json_object_get(val, res), res);
 
-	if (!ret) {
+	if (!ret)
+	{
 		LOGEMERG("Invalid config string or missing object for %s", res);
 		exit(1);
 	}
@@ -1137,16 +1236,18 @@ bool json_get_int64(int64_t *store, const json_t *val, const char *res)
 	json_t *entry = json_object_get(val, res);
 	bool ret = false;
 
-	if (!entry) {
+	if (!entry)
+	{
 		LOGDEBUG("Json did not find entry %s", res);
 		goto out;
 	}
-	if (!json_is_integer(entry)) {
+	if (!json_is_integer(entry))
+	{
 		LOGINFO("Json entry %s is not an integer", res);
 		goto out;
 	}
 	*store = json_integer_value(entry);
-	LOGDEBUG("Json found entry %s: %"PRId64, res, *store);
+	LOGDEBUG("Json found entry %s: %" PRId64, res, *store);
 	ret = true;
 out:
 	return ret;
@@ -1157,11 +1258,13 @@ bool json_get_int(int *store, const json_t *val, const char *res)
 	json_t *entry = json_object_get(val, res);
 	bool ret = false;
 
-	if (!entry) {
+	if (!entry)
+	{
 		LOGDEBUG("Json did not find entry %s", res);
 		goto out;
 	}
-	if (!json_is_integer(entry)) {
+	if (!json_is_integer(entry))
+	{
 		LOGWARNING("Json entry %s is not an integer", res);
 		goto out;
 	}
@@ -1177,11 +1280,13 @@ bool json_get_double(double *store, const json_t *val, const char *res)
 	json_t *entry = json_object_get(val, res);
 	bool ret = false;
 
-	if (!entry) {
+	if (!entry)
+	{
 		LOGDEBUG("Json did not find entry %s", res);
 		goto out;
 	}
-	if (!json_is_real(entry)) {
+	if (!json_is_real(entry))
+	{
 		LOGWARNING("Json entry %s is not a double", res);
 		goto out;
 	}
@@ -1197,11 +1302,13 @@ bool json_get_uint32(uint32_t *store, const json_t *val, const char *res)
 	json_t *entry = json_object_get(val, res);
 	bool ret = false;
 
-	if (!entry) {
+	if (!entry)
+	{
 		LOGDEBUG("Json did not find entry %s", res);
 		goto out;
 	}
-	if (!json_is_integer(entry)) {
+	if (!json_is_integer(entry))
+	{
 		LOGWARNING("Json entry %s is not an integer", res);
 		goto out;
 	}
@@ -1217,11 +1324,13 @@ bool json_get_bool(bool *store, const json_t *val, const char *res)
 	json_t *entry = json_object_get(val, res);
 	bool ret = false;
 
-	if (!entry) {
+	if (!entry)
+	{
 		LOGDEBUG("Json did not find entry %s", res);
 		goto out;
 	}
-	if (!json_is_boolean(entry)) {
+	if (!json_is_boolean(entry))
+	{
 		LOGINFO("Json entry %s is not a boolean", res);
 		goto out;
 	}
@@ -1262,7 +1371,8 @@ static void parse_btcds(ckpool_t *ckp, const json_t *arr_val, const int arr_size
 	ckp->btcdauth = ckzalloc(sizeof(char *) * arr_size);
 	ckp->btcdpass = ckzalloc(sizeof(char *) * arr_size);
 	ckp->btcdnotify = ckzalloc(sizeof(bool *) * arr_size);
-	for (i = 0; i < arr_size; i++) {
+	for (i = 0; i < arr_size; i++)
+	{
 		val = json_array_get(arr_val, i);
 		json_get_configstring(&ckp->btcdurl[i], val, "url");
 		json_get_configstring(&ckp->btcdauth[i], val, "auth");
@@ -1280,7 +1390,8 @@ static void parse_proxies(ckpool_t *ckp, const json_t *arr_val, const int arr_si
 	ckp->proxyurl = ckzalloc(sizeof(char *) * arr_size);
 	ckp->proxyauth = ckzalloc(sizeof(char *) * arr_size);
 	ckp->proxypass = ckzalloc(sizeof(char *) * arr_size);
-	for (i = 0; i < arr_size; i++) {
+	for (i = 0; i < arr_size; i++)
+	{
 		val = json_array_get(arr_val, i);
 		json_get_configstring(&ckp->proxyurl[i], val, "url");
 		json_get_configstring(&ckp->proxyauth[i], val, "auth");
@@ -1296,12 +1407,14 @@ static bool parse_serverurls(ckpool_t *ckp, const json_t *arr_val)
 
 	if (!arr_val)
 		goto out;
-	if (!json_is_array(arr_val)) {
+	if (!json_is_array(arr_val))
+	{
 		LOGINFO("Unable to parse serverurl entries as an array");
 		goto out;
 	}
 	arr_size = json_array_size(arr_val);
-	if (!arr_size) {
+	if (!arr_size)
+	{
 		LOGWARNING("Serverurl array empty");
 		goto out;
 	}
@@ -1310,7 +1423,8 @@ static bool parse_serverurls(ckpool_t *ckp, const json_t *arr_val)
 	ckp->server_highdiff = ckzalloc(sizeof(bool) * arr_size);
 	ckp->nodeserver = ckzalloc(sizeof(bool) * arr_size);
 	ckp->trusted = ckzalloc(sizeof(bool) * arr_size);
-	for (i = 0; i < arr_size; i++) {
+	for (i = 0; i < arr_size; i++)
+	{
 		json_t *val = json_array_get(arr_val, i);
 
 		if (!_json_get_string(&ckp->serverurl[i], val, "serverurl"))
@@ -1327,12 +1441,14 @@ static void parse_nodeservers(ckpool_t *ckp, const json_t *arr_val)
 
 	if (!arr_val)
 		return;
-	if (!json_is_array(arr_val)) {
+	if (!json_is_array(arr_val))
+	{
 		LOGWARNING("Unable to parse nodeservers entries as an array");
 		return;
 	}
 	arr_size = json_array_size(arr_val);
-	if (!arr_size) {
+	if (!arr_size)
+	{
 		LOGWARNING("Nodeserver array empty");
 		return;
 	}
@@ -1340,7 +1456,8 @@ static void parse_nodeservers(ckpool_t *ckp, const json_t *arr_val)
 	ckp->serverurl = realloc(ckp->serverurl, sizeof(char *) * total_urls);
 	ckp->nodeserver = realloc(ckp->nodeserver, sizeof(bool) * total_urls);
 	ckp->trusted = realloc(ckp->trusted, sizeof(bool) * total_urls);
-	for (i = 0, j = ckp->serverurls; j < total_urls; i++, j++) {
+	for (i = 0, j = ckp->serverurls; j < total_urls; i++, j++)
+	{
 		json_t *val = json_array_get(arr_val, i);
 
 		if (!_json_get_string(&ckp->serverurl[j], val, "nodeserver"))
@@ -1357,12 +1474,14 @@ static void parse_trusted(ckpool_t *ckp, const json_t *arr_val)
 
 	if (!arr_val)
 		return;
-	if (!json_is_array(arr_val)) {
+	if (!json_is_array(arr_val))
+	{
 		LOGWARNING("Unable to parse trusted server entries as an array");
 		return;
 	}
 	arr_size = json_array_size(arr_val);
-	if (!arr_size) {
+	if (!arr_size)
+	{
 		LOGWARNING("Trusted array empty");
 		return;
 	}
@@ -1370,7 +1489,8 @@ static void parse_trusted(ckpool_t *ckp, const json_t *arr_val)
 	ckp->serverurl = realloc(ckp->serverurl, sizeof(char *) * total_urls);
 	ckp->nodeserver = realloc(ckp->nodeserver, sizeof(bool) * total_urls);
 	ckp->trusted = realloc(ckp->trusted, sizeof(bool) * total_urls);
-	for (i = 0, j = ckp->serverurls; j < total_urls; i++, j++) {
+	for (i = 0, j = ckp->serverurls; j < total_urls; i++, j++)
+	{
 		json_t *val = json_array_get(arr_val, i);
 
 		if (!_json_get_string(&ckp->serverurl[j], val, "trusted"))
@@ -1379,7 +1499,6 @@ static void parse_trusted(ckpool_t *ckp, const json_t *arr_val)
 	}
 	ckp->serverurls = total_urls;
 }
-
 
 static bool parse_redirecturls(ckpool_t *ckp, const json_t *arr_val)
 {
@@ -1390,19 +1509,22 @@ static bool parse_redirecturls(ckpool_t *ckp, const json_t *arr_val)
 
 	if (!arr_val)
 		goto out;
-	if (!json_is_array(arr_val)) {
+	if (!json_is_array(arr_val))
+	{
 		LOGNOTICE("Unable to parse redirecturl entries as an array");
 		goto out;
 	}
 	arr_size = json_array_size(arr_val);
-	if (!arr_size) {
+	if (!arr_size)
+	{
 		LOGWARNING("redirecturl array empty");
 		goto out;
 	}
 	ckp->redirecturls = arr_size;
 	ckp->redirecturl = ckalloc(sizeof(char *) * arr_size);
 	ckp->redirectport = ckalloc(sizeof(char *) * arr_size);
-	for (i = 0; i < arr_size; i++) {
+	for (i = 0; i < arr_size; i++)
+	{
 		json_t *val = json_array_get(arr_val, i);
 
 		strncpy(redirecturl, json_string_value(val), INET6_ADDRSTRLEN - 1);
@@ -1417,7 +1539,6 @@ out:
 	return ret;
 }
 
-
 static void parse_config(ckpool_t *ckp)
 {
 	json_t *json_conf, *arr_val;
@@ -1426,20 +1547,23 @@ static void parse_config(ckpool_t *ckp)
 	int arr_size;
 
 	json_conf = json_load_file(ckp->config, JSON_DISABLE_EOF_CHECK, &err_val);
-	if (!json_conf) {
+	if (!json_conf)
+	{
 		LOGWARNING("Json decode error for config file %s: (%d): %s", ckp->config,
-			   err_val.line, err_val.text);
+				   err_val.line, err_val.text);
 		return;
 	}
 	arr_val = json_object_get(json_conf, "btcd");
-	if (arr_val && json_is_array(arr_val)) {
+	if (arr_val && json_is_array(arr_val))
+	{
 		arr_size = json_array_size(arr_val);
 		if (arr_size)
 			parse_btcds(ckp, arr_val, arr_size);
 	}
 	json_get_string(&ckp->btcaddress, json_conf, "btcaddress");
 	json_get_string(&ckp->btcsig, json_conf, "btcsig");
-	if (ckp->btcsig && strlen(ckp->btcsig) > 38) {
+	if (ckp->btcsig && strlen(ckp->btcsig) > 38)
+	{
 		LOGWARNING("Signature %s too long, truncating to 38 bytes", ckp->btcsig);
 		ckp->btcsig[38] = '\0';
 	}
@@ -1454,8 +1578,10 @@ static void parse_config(ckpool_t *ckp)
 		ckp->version_mask = 0x1fffe000;
 	/* Look for an array first and then a single entry */
 	arr_val = json_object_get(json_conf, "serverurl");
-	if (!parse_serverurls(ckp, arr_val)) {
-		if (json_get_string(&url, json_conf, "serverurl")) {
+	if (!parse_serverurls(ckp, arr_val))
+	{
+		if (json_get_string(&url, json_conf, "serverurl"))
+		{
 			ckp->serverurl = ckalloc(sizeof(char *));
 			ckp->serverurl[0] = url;
 			ckp->serverurls = 1;
@@ -1466,10 +1592,10 @@ static void parse_config(ckpool_t *ckp)
 	arr_val = json_object_get(json_conf, "trusted");
 	parse_trusted(ckp, arr_val);
 	json_get_string(&ckp->upstream, json_conf, "upstream");
-	json_get_int64(&ckp->mindiff, json_conf, "mindiff");
-	json_get_int64(&ckp->startdiff, json_conf, "startdiff");
-	json_get_int64(&ckp->highdiff, json_conf, "highdiff");
-	json_get_int64(&ckp->maxdiff, json_conf, "maxdiff");
+	json_get_double(&ckp->mindiff, json_conf, "mindiff");
+	json_get_double(&ckp->startdiff, json_conf, "startdiff");
+	json_get_double(&ckp->highdiff, json_conf, "highdiff");
+	json_get_double(&ckp->maxdiff, json_conf, "maxdiff");
 	json_get_string(&ckp->logdir, json_conf, "logdir");
 	json_get_int(&ckp->maxclients, json_conf, "maxclients");
 	json_get_double(&ckp->donation, json_conf, "donation");
@@ -1479,7 +1605,8 @@ static void parse_config(ckpool_t *ckp)
 	else if (ckp->donation > 99.9)
 		ckp->donation = 99.9;
 	arr_val = json_object_get(json_conf, "proxy");
-	if (arr_val && json_is_array(arr_val)) {
+	if (arr_val && json_is_array(arr_val))
+	{
 		arr_size = json_array_size(arr_val);
 		if (arr_size)
 			parse_proxies(ckp, arr_val, arr_size);
@@ -1499,7 +1626,8 @@ static void manage_old_instance(ckpool_t *ckp, proc_instance_t *pi)
 	FILE *fp;
 
 	sprintf(path, "%s%s.pid", pi->ckp->socket_dir, pi->processname);
-	if (!stat(path, &statbuf)) {
+	if (!stat(path, &statbuf))
+	{
 		int oldpid, ret;
 
 		LOGNOTICE("File %s exists", path);
@@ -1508,9 +1636,11 @@ static void manage_old_instance(ckpool_t *ckp, proc_instance_t *pi)
 			quit(1, "Failed to open file %s", path);
 		ret = fscanf(fp, "%d", &oldpid);
 		fclose(fp);
-		if (ret == 1 && !(kill_pid(oldpid, 0))) {
+		if (ret == 1 && !(kill_pid(oldpid, 0)))
+		{
 			LOGNOTICE("Old process %s pid %d still exists", pi->processname, oldpid);
-			if (ckp->handover) {
+			if (ckp->handover)
+			{
 				LOGINFO("Saving pid to be handled at handover");
 				pi->oldpid = oldpid;
 				return;
@@ -1531,26 +1661,25 @@ static void prepare_child(ckpool_t *ckp, proc_instance_t *pi, void *process, cha
 }
 
 static struct option long_options[] = {
-	{"btcsolo",	no_argument,		0,	'B'},
-	{"config",	required_argument,	0,	'c'},
-	{"daemonise",	no_argument,		0,	'D'},
-	{"group",	required_argument,	0,	'g'},
-	{"handover",	no_argument,		0,	'H'},
-	{"help",	no_argument,		0,	'h'},
-	{"killold",	no_argument,		0,	'k'},
-	{"log-shares",	no_argument,		0,	'L'},
-	{"loglevel",	required_argument,	0,	'l'},
-	{"name",	required_argument,	0,	'n'},
-	{"node",	no_argument,		0,	'N'},
-	{"passthrough",	no_argument,		0,	'P'},
-	{"proxy",	no_argument,		0,	'p'},
-	{"quiet",	no_argument,		0,	'q'},
-	{"redirector",	no_argument,		0,	'R'},
-	{"sockdir",	required_argument,	0,	's'},
-	{"trusted",	no_argument,		0,	't'},
-	{"userproxy",	no_argument,		0,	'u'},
-	{0, 0, 0, 0}
-};
+	{"btcsolo", no_argument, 0, 'B'},
+	{"config", required_argument, 0, 'c'},
+	{"daemonise", no_argument, 0, 'D'},
+	{"group", required_argument, 0, 'g'},
+	{"handover", no_argument, 0, 'H'},
+	{"help", no_argument, 0, 'h'},
+	{"killold", no_argument, 0, 'k'},
+	{"log-shares", no_argument, 0, 'L'},
+	{"loglevel", required_argument, 0, 'l'},
+	{"name", required_argument, 0, 'n'},
+	{"node", no_argument, 0, 'N'},
+	{"passthrough", no_argument, 0, 'P'},
+	{"proxy", no_argument, 0, 'p'},
+	{"quiet", no_argument, 0, 'q'},
+	{"redirector", no_argument, 0, 'R'},
+	{"sockdir", required_argument, 0, 's'},
+	{"trusted", no_argument, 0, 't'},
+	{"userproxy", no_argument, 0, 'u'},
+	{0, 0, 0, 0}};
 
 static bool send_recv_path(const char *path, const char *msg)
 {
@@ -1560,11 +1689,13 @@ static bool send_recv_path(const char *path, const char *msg)
 
 	send_unix_msg(sockd, msg);
 	response = recv_unix_msg(sockd);
-	if (response) {
+	if (response)
+	{
 		ret = true;
 		LOGWARNING("Received: %s in response to %s request", response, msg);
 		dealloc(response);
-	} else
+	}
+	else
 		LOGWARNING("Received no response to %s request", msg);
 	Close(sockd);
 	return ret;
@@ -1596,99 +1727,107 @@ int main(int argc, char **argv)
 	if (!strcmp(appname, "ckproxy"))
 		ckp.proxy = true;
 
-	while ((c = getopt_long(argc, argv, "Bc:Dd:g:HhkLl:Nn:PpqRS:s:tu", long_options, &i)) != -1) {
-		switch (c) {
-			case 'B':
-				if (ckp.proxy)
-					quit(1, "Cannot set both proxy and btcsolo mode");
-				ckp.btcsolo = true;
-				break;
-			case 'c':
-				ckp.config = optarg;
-				break;
-			case 'D':
-				ckp.daemon = true;
-				break;
-			case 'g':
-				ckp.grpnam = optarg;
-				break;
-			case 'H':
-				ckp.handover = true;
-				ckp.killold = true;
-				break;
-			case 'h':
-				for (j = 0; long_options[j].val; j++) {
-					struct option *jopt = &long_options[j];
+	while ((c = getopt_long(argc, argv, "Bc:Dd:g:HhkLl:Nn:PpqRS:s:tu", long_options, &i)) != -1)
+	{
+		switch (c)
+		{
+		case 'B':
+			if (ckp.proxy)
+				quit(1, "Cannot set both proxy and btcsolo mode");
+			ckp.btcsolo = true;
+			break;
+		case 'c':
+			ckp.config = optarg;
+			break;
+		case 'D':
+			ckp.daemon = true;
+			break;
+		case 'g':
+			ckp.grpnam = optarg;
+			break;
+		case 'H':
+			ckp.handover = true;
+			ckp.killold = true;
+			break;
+		case 'h':
+			for (j = 0; long_options[j].val; j++)
+			{
+				struct option *jopt = &long_options[j];
 
-					if (jopt->has_arg) {
-						char *upper = alloca(strlen(jopt->name) + 1);
-						int offset = 0;
+				if (jopt->has_arg)
+				{
+					char *upper = alloca(strlen(jopt->name) + 1);
+					int offset = 0;
 
-						do {
-							upper[offset] = toupper(jopt->name[offset]);
-						} while (upper[offset++] != '\0');
-						printf("-%c %s | --%s %s\n", jopt->val,
-						       upper, jopt->name, upper);
-					} else
-						printf("-%c | --%s\n", jopt->val, jopt->name);
+					do
+					{
+						upper[offset] = toupper(jopt->name[offset]);
+					} while (upper[offset++] != '\0');
+					printf("-%c %s | --%s %s\n", jopt->val,
+						   upper, jopt->name, upper);
 				}
-				exit(0);
-			case 'k':
-				ckp.killold = true;
-				break;
-			case 'L':
-				ckp.logshares = true;
-				break;
-			case 'l':
-				ckp.loglevel = atoi(optarg);
-				if (ckp.loglevel < LOG_EMERG || ckp.loglevel > LOG_DEBUG) {
-					quit(1, "Invalid loglevel (range %d - %d): %d",
-					     LOG_EMERG, LOG_DEBUG, ckp.loglevel);
-				}
-				break;
-			case 'N':
-				if (ckp.proxy || ckp.redirector || ckp.userproxy || ckp.passthrough)
-					quit(1, "Cannot set another proxy type or redirector and node mode");
-				ckp.proxy = ckp.passthrough = ckp.node = true;
-				break;
-			case 'n':
-				ckp.name = optarg;
-				break;
-			case 'P':
-				if (ckp.proxy || ckp.redirector || ckp.userproxy || ckp.node)
-					quit(1, "Cannot set another proxy type or redirector and passthrough mode");
-				ckp.proxy = ckp.passthrough = true;
-				break;
-			case 'p':
-				if (ckp.passthrough || ckp.redirector || ckp.userproxy || ckp.node)
-					quit(1, "Cannot set another proxy type or redirector and proxy mode");
-				ckp.proxy = true;
-				break;
-			case 'q':
-				ckp.quiet = true;
-				break;
-			case 'R':
-				if (ckp.proxy || ckp.passthrough || ckp.userproxy || ckp.node)
-					quit(1, "Cannot set a proxy type or passthrough and redirector modes");
-				ckp.proxy = ckp.passthrough = ckp.redirector = true;
-				break;
-			case 's':
-				ckp.socket_dir = strdup(optarg);
-				break;
-			case 't':
-				if (ckp.proxy)
-					quit(1, "Cannot set a proxy type and trusted remote mode");
-				ckp.remote = true;
-				break;
-			case 'u':
-				if (ckp.proxy || ckp.redirector || ckp.passthrough || ckp.node)
-					quit(1, "Cannot set both userproxy and another proxy type or redirector");
-				ckp.userproxy = ckp.proxy = true;
-				break;
+				else
+					printf("-%c | --%s\n", jopt->val, jopt->name);
+			}
+			exit(0);
+		case 'k':
+			ckp.killold = true;
+			break;
+		case 'L':
+			ckp.logshares = true;
+			break;
+		case 'l':
+			ckp.loglevel = atoi(optarg);
+			if (ckp.loglevel < LOG_EMERG || ckp.loglevel > LOG_DEBUG)
+			{
+				quit(1, "Invalid loglevel (range %d - %d): %d",
+					 LOG_EMERG, LOG_DEBUG, ckp.loglevel);
+			}
+			break;
+		case 'N':
+			if (ckp.proxy || ckp.redirector || ckp.userproxy || ckp.passthrough)
+				quit(1, "Cannot set another proxy type or redirector and node mode");
+			ckp.proxy = ckp.passthrough = ckp.node = true;
+			break;
+		case 'n':
+			ckp.name = optarg;
+			break;
+		case 'P':
+			if (ckp.proxy || ckp.redirector || ckp.userproxy || ckp.node)
+				quit(1, "Cannot set another proxy type or redirector and passthrough mode");
+			ckp.proxy = ckp.passthrough = true;
+			break;
+		case 'p':
+			if (ckp.passthrough || ckp.redirector || ckp.userproxy || ckp.node)
+				quit(1, "Cannot set another proxy type or redirector and proxy mode");
+			ckp.proxy = true;
+			break;
+		case 'q':
+			ckp.quiet = true;
+			break;
+		case 'R':
+			if (ckp.proxy || ckp.passthrough || ckp.userproxy || ckp.node)
+				quit(1, "Cannot set a proxy type or passthrough and redirector modes");
+			ckp.proxy = ckp.passthrough = ckp.redirector = true;
+			break;
+		case 's':
+			ckp.socket_dir = strdup(optarg);
+			break;
+		case 't':
+			if (ckp.proxy)
+				quit(1, "Cannot set a proxy type and trusted remote mode");
+			ckp.remote = true;
+			break;
+		case 'u':
+			if (ckp.proxy || ckp.redirector || ckp.passthrough || ckp.node)
+				quit(1, "Cannot set both userproxy and another proxy type or redirector");
+			ckp.userproxy = ckp.proxy = true;
+			break;
 		}
 	}
 
-	if (!ckp.name) {
+	if (!ckp.name)
+	{
 		if (ckp.node)
 			ckp.name = "cknode";
 		else if (ckp.redirector)
@@ -1700,24 +1839,29 @@ int main(int argc, char **argv)
 		else
 			ckp.name = "ckpool";
 	}
+	LOGWARNING("ckp name: %s", ckp.name);
 	snprintf(buf, 15, "%s", ckp.name);
 	prctl(PR_SET_NAME, buf, 0, 0, 0);
 	memset(buf, 0, 15);
 
-	if (ckp.grpnam) {
+	if (ckp.grpnam)
+	{
 		struct group *group = getgrnam(ckp.grpnam);
 
 		if (!group)
 			quit(1, "Failed to find group %s", ckp.grpnam);
 		ckp.gr_gid = group->gr_gid;
-	} else
+	}
+	else
 		ckp.gr_gid = getegid();
 
-	if (!ckp.config) {
+	if (!ckp.config)
+	{
 		ckp.config = strdup(ckp.name);
 		realloc_strcat(&ckp.config, ".conf");
 	}
-	if (!ckp.socket_dir) {
+	if (!ckp.socket_dir)
+	{
 		ckp.socket_dir = strdup("/tmp/");
 		realloc_strcat(&ckp.socket_dir, ckp.name);
 	}
@@ -1732,14 +1876,16 @@ int main(int argc, char **argv)
 
 	parse_config(&ckp);
 	/* Set defaults if not found in config file */
-	if (!ckp.btcds) {
+	if (!ckp.btcds)
+	{
 		ckp.btcds = 1;
 		ckp.btcdurl = ckzalloc(sizeof(char *));
 		ckp.btcdauth = ckzalloc(sizeof(char *));
 		ckp.btcdpass = ckzalloc(sizeof(char *));
 		ckp.btcdnotify = ckzalloc(sizeof(bool));
 	}
-	for (i = 0; i < ckp.btcds; i++) {
+	for (i = 0; i < ckp.btcds; i++)
+	{
 		if (!ckp.btcdurl[i])
 			ckp.btcdurl[i] = strdup("localhost:8332");
 		if (!ckp.btcdauth[i])
@@ -1763,20 +1909,22 @@ int main(int argc, char **argv)
 		ckp.nonce1length = 4;
 	else if (ckp.nonce1length < 2 || ckp.nonce1length > 8)
 		quit(0, "Invalid nonce1length %d specified, must be 2~8", ckp.nonce1length);
-	if (!ckp.nonce2length) {
+	if (!ckp.nonce2length)
+	{
 		/* nonce2length is zero by default in proxy mode */
 		if (!ckp.proxy)
 			ckp.nonce2length = 8;
-	} else if (ckp.nonce2length < 2 || ckp.nonce2length > 8)
+	}
+	else if (ckp.nonce2length < 2 || ckp.nonce2length > 8)
 		quit(0, "Invalid nonce2length %d specified, must be 2~8", ckp.nonce2length);
 	if (!ckp.update_interval)
 		ckp.update_interval = 30;
 	if (!ckp.mindiff)
-		ckp.mindiff = 1;
+		ckp.mindiff = 0.1;
 	if (!ckp.startdiff)
-		ckp.startdiff = 42;
+		ckp.startdiff = 0.1;
 	if (!ckp.highdiff)
-		ckp.highdiff = 1000000;
+		ckp.highdiff = 0.1;
 	if (!ckp.logdir)
 		ckp.logdir = strdup("logs");
 	if (!ckp.serverurls)
@@ -1824,11 +1972,14 @@ int main(int argc, char **argv)
 	name_process_sockname(&ckp.main.us, &ckp.main);
 	ckp.oldconnfd = ckzalloc(sizeof(int *) * ckp.serverurls);
 	manage_old_instance(&ckp, &ckp.main);
-	if (ckp.handover) {
+	if (ckp.handover)
+	{
 		const char *path = ckp.main.us.path;
 
-		if (send_recv_path(path, "ping")) {
-			for (i = 0; i < ckp.serverurls; i++) {
+		if (send_recv_path(path, "ping"))
+		{
+			for (i = 0; i < ckp.serverurls; i++)
+			{
 				char oldurl[INET6_ADDRSTRLEN], oldport[8];
 				char getfd[16];
 				int sockd;
@@ -1844,12 +1995,15 @@ int main(int argc, char **argv)
 				sockd = ckp.oldconnfd[i];
 				if (!sockd)
 					break;
-				if (url_from_socket(sockd, oldurl, oldport)) {
+				if (url_from_socket(sockd, oldurl, oldport))
+				{
 					LOGWARNING("Inherited old server socket %d url %s:%s !",
-						   i, oldurl, oldport);
-				} else {
+							   i, oldurl, oldport);
+				}
+				else
+				{
 					LOGWARNING("Inherited old server socket %d with new file descriptor %d!",
-						   i, ckp.oldconnfd[i]);
+							   i, ckp.oldconnfd[i]);
 				}
 			}
 			send_recv_path(path, "reject");
@@ -1858,14 +2012,16 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (ckp.daemon) {
+	if (ckp.daemon)
+	{
 		int fd;
 
 		if (fork())
 			exit(0);
 		setsid();
-		fd = open("/dev/null",O_RDWR, 0);
-		if (fd != -1) {
+		fd = open("/dev/null", O_RDWR, 0);
+		if (fd != -1)
+		{
 			dup2(fd, STDIN_FILENO);
 			dup2(fd, STDOUT_FILENO);
 			dup2(fd, STDERR_FILENO);
@@ -1876,13 +2032,16 @@ int main(int argc, char **argv)
 	open_process_sock(&ckp, &ckp.main, &ckp.main.us);
 
 	ret = sysconf(_SC_OPEN_MAX);
-	if (ckp.maxclients > ret * 9 / 10) {
+	if (ckp.maxclients > ret * 9 / 10)
+	{
 		LOGWARNING("Cannot set maxclients to %d due to max open file limit of %d, reducing to %d",
-			   ckp.maxclients, ret, ret * 9 / 10);
+				   ckp.maxclients, ret, ret * 9 / 10);
 		ckp.maxclients = ret * 9 / 10;
-	} else if (!ckp.maxclients) {
+	}
+	else if (!ckp.maxclients)
+	{
 		LOGNOTICE("Setting maxclients to %d due to max open file limit of %d",
-			  ret * 9 / 10, ret);
+				  ret * 9 / 10, ret);
 		ckp.maxclients = ret * 9 / 10;
 	}
 
