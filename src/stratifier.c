@@ -145,11 +145,11 @@ struct user_instance {
 	struct userwb *userwbs; /* Protected by instance lock */
 
 	double best_diff; /* Best share found by this user */
-	int64_t best_ever; /* Best share ever found by this user */
+	double best_ever; /* Best share ever found by this user */
 
-	int64_t shares;
+	double shares;
 
-	int64_t uadiff; /* Shares not yet accounted for in hashmeter */
+	double uadiff; /* Shares not yet accounted for in hashmeter */
 
 	double dsps1; /* Diff shares per second, 1 minute rolling average */
 	double dsps5; /* ... 5 minute ... */
@@ -177,9 +177,9 @@ struct worker_instance {
 	worker_instance_t *next;
 	worker_instance_t *prev;
 
-	int64_t shares;
+	double shares;
 
-	int64_t uadiff; /* Shares not yet accounted for in hashmeter */
+	double uadiff; /* Shares not yet accounted for in hashmeter */
 
 	double dsps1;
 	double dsps5;
@@ -191,8 +191,8 @@ struct worker_instance {
 	time_t start_time;
 
 	double best_diff; /* Best share found by this worker */
-	int64_t best_ever; /* Best share ever found by this worker */
-	int mindiff; /* User chosen mindiff */
+	double best_ever; /* Best share ever found by this worker */
+	double mindiff; /* User chosen mindiff */
 
 	bool idle;
 	bool notified_idle;
@@ -235,11 +235,11 @@ struct stratum_instance {
 	uint64_t enonce1_64;
 	int session_id;
 
-	int64_t diff; /* Current diff */
-	int64_t old_diff; /* Previous diff */
+	double diff; /* Current diff */
+	double old_diff; /* Previous diff */
 	int64_t diff_change_job_id; /* Last job_id we changed diff */
 
-	int64_t uadiff; /* Shares not yet accounted for in hashmeter */
+	double uadiff; /* Shares not yet accounted for in hashmeter */
 
 	double dsps1; /* Diff shares per second, 1 minute rolling average */
 	double dsps5; /* ... 5 minute ... */
@@ -286,7 +286,7 @@ struct stratum_instance {
 	time_t last_txns; /* Last time this worker requested txn hashes */
 	time_t disconnected_time; /* Time this instance disconnected */
 
-	int64_t suggest_diff; /* Stratum client suggested diff */
+	double suggest_diff; /* Stratum client suggested diff */
 	double best_diff; /* Best share found by this instance */
 
 	sdata_t *sdata; /* Which sdata this client is bound to */
@@ -1040,8 +1040,8 @@ static void add_base(ckpool_t *ckp, sdata_t *sdata, workbase_t *wb, bool *new_bl
 	/* Stats network_diff is not protected by lock but is not a critical
 	 * value */
 	wb->network_diff = diff_from_nbits(wb->headerbin + 72);
-	if (wb->network_diff < 1)
-		wb->network_diff = 1;
+	// if (wb->network_diff < 1)
+	// 	wb->network_diff = 1;
 	stats->network_diff = wb->network_diff;
 	if (stats->network_diff != old_diff)
 		LOGWARNING("Network diff set to %.1f", stats->network_diff);
@@ -5202,14 +5202,14 @@ static void read_userstats(ckpool_t *ckp, sdata_t *sdata, int tvsec_diff)
 		user->dsps10080 = dsps_from_key(val, "hashrate7d");
 		json_get_int(&lastshare, val, "lastshare");
 		user->last_share.tv_sec = lastshare;
-		json_get_int64(&user->shares, val, "shares");
+		json_get_double(&user->shares, val, "shares");
 		json_get_double(&user->best_diff, val, "bestshare");
-		json_get_int64(&user->best_ever, val, "bestever");
+		json_get_double(&user->best_ever, val, "bestever");
 		json_get_int64(&authorised, val, "authorised");
 		user->auth_time = authorised;
 		if (user->best_diff > user->best_ever)
 			user->best_ever = user->best_diff;
-		LOGINFO("Successfully read user %s stats %f %f %f %f %f %f %ld %ld", user->username,
+		LOGINFO("Successfully read user %s stats %f %f %f %f %f %f %lf %ld", user->username,
 			user->dsps1, user->dsps5, user->dsps60, user->dsps1440,
 			user->dsps10080, user->best_diff, user->best_ever, user->auth_time);
 		if (tvsec_diff > 60)
@@ -5241,11 +5241,11 @@ static void read_userstats(ckpool_t *ckp, sdata_t *sdata, int tvsec_diff)
 			json_get_int(&lastshare, arr_val, "lastshare");
 			worker->last_share.tv_sec = lastshare;
 			json_get_double(&worker->best_diff, arr_val, "bestshare");
-			json_get_int64(&worker->best_ever, arr_val, "bestever");
+			json_get_double(&worker->best_ever, arr_val, "bestever");
 			if (worker->best_diff > worker->best_ever)
 				worker->best_ever = worker->best_diff;
-			json_get_int64(&worker->shares, arr_val, "shares");
-			LOGINFO("Successfully read worker %s stats %f %f %f %f %f %ld", worker->workername,
+			json_get_double(&worker->shares, arr_val, "shares");
+			LOGINFO("Successfully read worker %s stats %f %f %f %f %f %lf", worker->workername,
 				worker->dsps1, worker->dsps5, worker->dsps60, worker->dsps1440, worker->best_diff, worker->best_ever);
 			if (tvsec_diff > 60)
 				decay_worker(worker, 0, &now);
@@ -5564,7 +5564,7 @@ static void stratum_send_diff(sdata_t *sdata, const stratum_instance_t *client)
 {
 	json_t *json_msg;
 
-	JSON_CPACK(json_msg, "{s[I]soss}", "params", client->diff, "id", json_null(),
+	JSON_CPACK(json_msg, "{s[f]soss}", "params", client->diff, "id", json_null(),
 			     "method", "mining.set_difficulty");
 	stratum_add_send(sdata, json_msg, client->id, SM_DIFF);
 }
@@ -5600,7 +5600,8 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	worker_instance_t *worker = client->worker_instance;
 	double tdiff, bdiff, dsps, drr, network_diff, bias;
 	user_instance_t *user = client->user_instance;
-	int64_t next_blockid, optimal, mindiff;
+	int64_t next_blockid;
+	double optimal, mindiff;
 	tv_t now_t;
 
 	mutex_lock(&ckp_sdata->uastats_lock);
@@ -5678,12 +5679,12 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	else
 		mindiff = worker->mindiff;
 	/* Allow slightly lower diffs when users choose their own mindiff */
-	if (mindiff) {
-		if (drr < 0.5)
-			return;
-		optimal = lround(dsps * 2.4);
+	if (mindiff > 0.001) {
+		// if (drr < 0.5)
+		// 	return;
+		optimal = dsps * 2.4;
 	} else
-		optimal = lround(dsps * 3.33);
+		optimal = dsps * 3.33;
 
 	/* Clamp to mindiff ~ network_diff */
 
@@ -5694,14 +5695,14 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	optimal = MAX(optimal, mindiff);
 
 	/* Set to lower of optimal and pool maxdiff */
-	if (ckp->maxdiff)
+	if (ckp->maxdiff > 0.001)
 		optimal = MIN(optimal, ckp->maxdiff);
 
 	/* Set to lower of optimal and network_diff */
 	optimal = MIN(optimal, network_diff);
 
-	if (unlikely(optimal < 1))
-		return;
+	// if (unlikely(optimal < 1))
+	// 	return;
 
 	if (client->diff == optimal)
 		return;
@@ -5716,7 +5717,7 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 
 	client->ssdc = 0;
 
-	LOGINFO("Client %s biased dsps %.2f dsps %.2f drr %.2f adjust diff from %"PRId64" to: %"PRId64" ",
+	LOGINFO("Client %s biased dsps %.2f dsps %.2f drr %.2f adjust diff from %.2f to: %.2f ",
 		client->identity, dsps, client->dsps5, drr, client->diff, optimal);
 
 	copy_tv(&client->ldc, &now_t);
@@ -6461,7 +6462,7 @@ static void suggest_diff(ckpool_t *ckp, stratum_instance_t *client, const char *
 			 const json_t *params_val)
 {
 	json_t *arr_val = json_array_get(params_val, 0);
-	int64_t sdiff;
+	double sdiff;
 
 	if (unlikely(!client_active(client))) {
 		LOGNOTICE("Attempted to suggest diff on unauthorised client %s", client->identity);
@@ -6469,7 +6470,7 @@ static void suggest_diff(ckpool_t *ckp, stratum_instance_t *client, const char *
 	}
 	if (arr_val && json_is_integer(arr_val))
 		sdiff = json_integer_value(arr_val);
-	else if (sscanf(method, "mining.suggest_difficulty(%"PRId64, &sdiff) != 1) {
+	else if (sscanf(method, "mining.suggest_difficulty(%lf)", &sdiff) != 1) {
 		LOGINFO("Failed to parse suggest_difficulty for client %s", client->identity);
 		return;
 	}
@@ -7674,7 +7675,8 @@ static void sauth_process(ckpool_t *ckp, json_params_t *jp)
 	json_t *result_val, *err_val = NULL;
 	sdata_t *sdata = ckp->sdata;
 	stratum_instance_t *client;
-	int64_t mindiff, client_id;
+	int64_t client_id;
+	double mindiff;
 	bool ret;
 
 	client_id = jp->client_id;
@@ -7710,11 +7712,11 @@ static void sauth_process(ckpool_t *ckp, json_params_t *jp)
 
 	/* Update the client now if they have set a valid mindiff different
 	 * from the startdiff. suggest_diff overrides worker mindiff */
-	if (client->suggest_diff)
+	if (client->suggest_diff > 0.001)
 		mindiff = client->suggest_diff;
 	else
 		mindiff = client->worker_instance->mindiff;
-	if (mindiff) {
+	if (mindiff > 0.001) {
 		mindiff = MAX(ckp->mindiff, mindiff);
 		if (mindiff != client->diff) {
 			client->diff = mindiff;
@@ -8020,7 +8022,7 @@ static void *statsupdate(void *arg)
 			ghs = user->dsps10080 * nonces;
 			suffix_string(ghs, suffix10080, 16, 0);
 
-			JSON_CPACK(val, "{ss,ss,ss,ss,ss,si,si,sI,sf,sI, sI}",
+			JSON_CPACK(val, "{ss,ss,ss,ss,ss,si,si,sf,sf,sf,sI}",
 					"hashrate1m", suffix1,
 					"hashrate5m", suffix5,
 					"hashrate1hr", suffix60,
@@ -8084,7 +8086,7 @@ static void *statsupdate(void *arg)
 
 				LOGDEBUG("Storing worker %s", worker->workername);
 
-				JSON_CPACK(wval, "{ss,ss,ss,ss,ss,ss,si,sI,sf,sI}",
+				JSON_CPACK(wval, "{ss,ss,ss,ss,ss,ss,si,sf,sf,sf}",
 						"workername", worker->workername,
 						"hashrate1m", suffix1,
 						"hashrate5m", suffix5,
