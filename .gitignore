@@ -40,4 +40,9 @@ ltmain.sh
 
 libtool
 
-
+src/libckpool.a
+src/notifier
+src/jansson-2.14/*
+src/sha256_code_release/*
+log
+logs

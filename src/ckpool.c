@@ -1466,10 +1466,10 @@ static void parse_config(ckpool_t *ckp)
 	arr_val = json_object_get(json_conf, "trusted");
 	parse_trusted(ckp, arr_val);
 	json_get_string(&ckp->upstream, json_conf, "upstream");
-	json_get_int64(&ckp->mindiff, json_conf, "mindiff");
-	json_get_int64(&ckp->startdiff, json_conf, "startdiff");
-	json_get_int64(&ckp->highdiff, json_conf, "highdiff");
-	json_get_int64(&ckp->maxdiff, json_conf, "maxdiff");
+	json_get_double(&ckp->mindiff, json_conf, "mindiff");
+	json_get_double(&ckp->startdiff, json_conf, "startdiff");
+	json_get_double(&ckp->highdiff, json_conf, "highdiff");
+	json_get_double(&ckp->maxdiff, json_conf, "maxdiff");
 	json_get_string(&ckp->logdir, json_conf, "logdir");
 	json_get_int(&ckp->maxclients, json_conf, "maxclients");
 	json_get_double(&ckp->donation, json_conf, "donation");
@@ -1572,6 +1572,8 @@ static bool send_recv_path(const char *path, const char *msg)
 
 int main(int argc, char **argv)
 {
+
+	/* Structure describing the action to be taken when a signal arrives*/
 	struct sigaction handler;
 	int c, ret, i = 0, j;
 	char buf[512] = {};
@@ -1586,7 +1588,7 @@ int main(int argc, char **argv)
 	memset(&ckp, 0, sizeof(ckp));
 	ckp.starttime = time(NULL);
 	ckp.startpid = getpid();
-	ckp.loglevel = LOG_NOTICE;
+	ckp.loglevel = LOG_WARNING;
 	ckp.initial_args = ckalloc(sizeof(char *) * (argc + 2)); /* Leave room for extra -H */
 	for (ckp.args = 0; ckp.args < argc; ckp.args++)
 		ckp.initial_args[ckp.args] = strdup(argv[ckp.args]);
@@ -1771,11 +1773,13 @@ int main(int argc, char **argv)
 		quit(0, "Invalid nonce2length %d specified, must be 2~8", ckp.nonce2length);
 	if (!ckp.update_interval)
 		ckp.update_interval = 30;
-	if (!ckp.mindiff)
+	if (ckp.mindiff < 0.001)
 		ckp.mindiff = 1;
-	if (!ckp.startdiff)
+	if (ckp.startdiff < 0.001)
 		ckp.startdiff = 42;
-	if (!ckp.highdiff)
+	if (ckp.highdiff < 0.001)
+		ckp.highdiff = 1000000;
+	if (!ckp.maxdiff < 0.001)
 		ckp.highdiff = 1000000;
 	if (!ckp.logdir)
 		ckp.logdir = strdup("logs");
