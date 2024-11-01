@@ -332,3 +332,5 @@ accept before rejecting further clients.
 "zmqblock" : Optional interface to use for zmq blockhash notification - ckpool
 only. Requires use of matched bitcoind -zmqpubhashblock option.
 Default: tcp://127.0.0.1:28332
+
+"spm" : Shares per minute allowed after which difficulty reset's.

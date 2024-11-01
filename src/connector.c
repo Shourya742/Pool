@@ -1584,6 +1584,7 @@ void *connector(void *arg)
 		ASPRINTF(&ckp->serverurl[0], "%s:%s", newurl, newport);
 		ckp->serverurls = 1;
 	} else {
+		LOGWARNING("serverurls : %d", ckp->serverurls);
 		cdata->serverfd = ckalloc(sizeof(int *) * ckp->serverurls);
 
 		for (i = 0; i < ckp->serverurls; i++) {
