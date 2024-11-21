@@ -5666,65 +5666,158 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	}
 
 	/* Diff rate ratio */
-	dsps = client->dsps1 / bias;
-	drr = dsps / (double)client->diff;
+	// dsps = client->dsps1 / bias;
+	// drr = dsps / (double)client->diff;
 
-	/* Optimal rate product is 0.3, allow some hysteresis. */
-	if (drr > 0.15 && drr < 0.4)
-		return;
+	// /* Optimal rate product is 0.3, allow some hysteresis. */
+	// // if (drr > 0.15 && drr < 0.4)
+	// // 	return;
 
-	/* Client suggest diff overrides worker mindiff */
-	if (client->suggest_diff)
-		mindiff = client->suggest_diff;
-	else
-		mindiff = worker->mindiff;
-	/* Allow slightly lower diffs when users choose their own mindiff */
-	if (mindiff > 0.001) {
-		// if (drr < 0.5)
-		// 	return;
-		optimal = dsps * 2.4;
-	} else
-		optimal = dsps * 3.33;
+	// /* Client suggest diff overrides worker mindiff */
+	// if (client->suggest_diff)
+	// 	mindiff = client->suggest_diff;
+	// else
+	// 	mindiff = worker->mindiff;
+	// /* Allow slightly lower diffs when users choose their own mindiff */
+	// if (mindiff > 0.001) {
+	// 	// if (drr < 0.5)
+	// 	// 	return;
+	// 	// optimal = dsps * 2.4;
+	// 	if (drr < 0.5) {
+	// 		optimal = dsps * 1.8; // Lower multiplier for small improvements
+	// 	} else if (drr >= 0.5 && drr < 0.8) {
+	// 		optimal = dsps * 2.0; // Moderate increase
+	// 	} else {
+	// 		optimal = dsps * 2.4; // Original multiplier for significant improvement
+	// 	}
+	// } else
+	// 	optimal = dsps * 3.33;
 
-	/* Clamp to mindiff ~ network_diff */
+	dsps = (client->dsps1 / bias) * 1.1;  // Boost for testing
+	drr = dsps / ((double)client->diff * 1.05);  // Adjust with factor
 
-	/* Set to higher of pool mindiff and optimal */
-	optimal = MAX(optimal, ckp->mindiff);
+	// // if (drr > 0.15 && drr < 0.4)
+	// // 	return;
 
-	/* Set to higher of optimal and user chosen diff */
-	optimal = MAX(optimal, mindiff);
+	// // Temporary clamping for fractional adjustments
+	// if (dsps < 0.001) 
+	// 	dsps = 0.001;
 
-	/* Set to lower of optimal and pool maxdiff */
-	if (ckp->maxdiff > 0.001)
-		optimal = MIN(optimal, ckp->maxdiff);
+	// if (client->suggest_diff)
+	// 	mindiff = client->suggest_diff;
+	// else
+	// 	mindiff = worker->mindiff;
 
-	/* Set to lower of optimal and network_diff */
-	optimal = MIN(optimal, network_diff);
+	// if (mindiff > 0.001) {
+	// 	optimal = dsps * 2.0;  // Adjust multiplier for fractional diff
+	// } else {
+	// 	optimal = dsps * 3.0;
+	// }
 
-	// if (unlikely(optimal < 1))
+	// optimal = MAX(optimal, ckp->mindiff);
+	// optimal = MAX(optimal, mindiff);
+	// if (ckp->maxdiff > 0.001)
+	// 	optimal = MIN(optimal, ckp->maxdiff);
+
+	// optimal = MIN(optimal, network_diff);
+
+	// // if (unlikely(optimal < 1))
+	// // 	optimal = 1.0;  // Clamp to minimum of 1 for testing
+
+	// if (client->diff == optimal)
 	// 	return;
 
-	if (client->diff == optimal)
-		return;
+	// // Debugging: Log adjustments
+	// LOGWARNING("Debug: dsps=%.4f, drr=%.4f, current diff=%.4f, optimal diff=%.4f",
+	// 		dsps, drr, client->diff, optimal);
 
-	/* If this is the first share in a change, reset the last diff change
-	 * to make sure the client hasn't just fallen back after a leave of
-	 * absence */
-	if (optimal < client->diff && client->ssdc == 1) {
-		copy_tv(&client->ldc, &now_t);
+	// // Force adjustment for testing
+	// client->ssdc = 0;
+	// client->diff = optimal;
+	// copy_tv(&client->ldc, &now_t);
+	// client->diff_change_job_id = next_blockid;
+	// stratum_send_diff(sdata, client);
+
+
+	// Target shares per second
+	double target_shares_per_sec = ckp->spm / 60.0;
+	double actual_shares_per_sec = dsps / client->diff;
+
+	// Adjustment factor based on share production rate
+	double adjustment_factor = actual_shares_per_sec / target_shares_per_sec;
+	adjustment_factor = MAX(0.5, MIN(2, adjustment_factor));  // Clamp adjustment factor
+	dsps *= adjustment_factor;  // Adjust dsps dynamically
+
+	// Calculate optimal difficulty with smoothing
+	if (mindiff > 0.001) {
+		optimal = (dsps * 2.4 + client->diff) / 2.0;  // Smooth increase for user-defined mindiff
+	} else {
+		optimal = (dsps * 3.3 + client->diff) / 2.0;  // Smooth increase for default
+	}
+
+	// Clamp optimal difficulty to avoid sharp changes
+	double max_change_ratio = 1.2;
+	double min_change_ratio = 0.8;
+	double max_diff = client->diff * max_change_ratio;
+	double min_diff = client->diff * min_change_ratio;
+
+	optimal = MAX(optimal, ckp->mindiff);
+	optimal = MIN(optimal, ckp->maxdiff);
+
+	if (client-> diff == optimal) {
 		return;
 	}
 
+	// Apply final adjustments and logging
+	
+	LOGWARNING("Adjusting difficulty: current=%.4f, optimal=%.4f, factor=%.4f",
+			client->diff, optimal, adjustment_factor);
+
 	client->ssdc = 0;
-
-	LOGINFO("Client %s biased dsps %.2f dsps %.2f drr %.2f adjust diff from %.2f to: %.2f ",
-		client->identity, dsps, client->dsps5, drr, client->diff, optimal);
-
+	client->diff = optimal;
 	copy_tv(&client->ldc, &now_t);
 	client->diff_change_job_id = next_blockid;
-	client->old_diff = client->diff;
-	client->diff = optimal;
 	stratum_send_diff(sdata, client);
+	
+	/* Clamp to mindiff ~ network_diff */
+
+	// /* Set to higher of pool mindiff and optimal */
+	// optimal = MAX(optimal, ckp->mindiff);
+
+	// /* Set to higher of optimal and user chosen diff */
+	// optimal = MAX(optimal, mindiff);
+
+	// /* Set to lower of optimal and pool maxdiff */
+	// if (ckp->maxdiff > 0.001)
+	// 	optimal = MIN(optimal, ckp->maxdiff);
+
+	// /* Set to lower of optimal and network_diff */
+	// optimal = MIN(optimal, network_diff);
+
+	// // if (unlikely(optimal < 1))
+	// // 	return;
+
+	// if (client->diff == optimal)
+	// 	return;
+
+	// /* If this is the first share in a change, reset the last diff change
+	//  * to make sure the client hasn't just fallen back after a leave of
+	//  * absence */
+	// if (optimal < client->diff && client->ssdc == 1) {
+	// 	copy_tv(&client->ldc, &now_t);
+	// 	return;
+	// }
+
+	// client->ssdc = 0;
+
+	// LOGINFO("Client %s biased dsps %.2f dsps %.2f drr %.2f adjust diff from %.2f to: %.2f ",
+	// 	client->identity, dsps, client->dsps5, drr, client->diff, optimal);
+
+	// copy_tv(&client->ldc, &now_t);
+	// client->diff_change_job_id = next_blockid;
+	// client->old_diff = client->diff;
+	// client->diff = optimal;
+	// stratum_send_diff(sdata, client);
 }
 
 static void
