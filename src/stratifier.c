@@ -5592,6 +5592,51 @@ static double time_bias(const double tdiff, const double period)
 	return 1.0 - 1.0 / exp(dexp);
 }
 
+/* Must enter with workbase_lock held */
+static json_t *__stratum_notify(const workbase_t *wb, const bool clean)
+{
+	json_t *val;
+
+	JSON_CPACK(val, "{s:[ssssosssb],s:o,s:s}",
+			"params",
+			wb->idstring,
+			wb->prevhash,
+			wb->coinb1,
+			wb->coinb2,
+			json_deep_copy(wb->merkle_array),
+			wb->bbversion,
+			wb->nbit,
+			wb->ntime,
+			clean,
+			"id", json_null(),
+			"method", "mining.notify");
+	return val;
+}
+
+static void update_client(const stratum_instance_t *client, const int64_t client_id);
+
+
+/* For sending a single stratum template update */
+static void stratum_send_update(sdata_t *sdata, const int64_t client_id, const bool clean)
+{
+	ckpool_t *ckp = sdata->ckp;
+	json_t *json_msg;
+
+	if (unlikely(!sdata->current_workbase)) {
+		if (!ckp->proxy)
+			LOGWARNING("No current workbase to send stratum update");
+		else
+			LOGDEBUG("No current workbase to send stratum update for client %"PRId64, client_id);
+		return;
+	}
+
+	ck_rlock(&sdata->workbase_lock);
+	json_msg = __stratum_notify(sdata->current_workbase, clean);
+	ck_runlock(&sdata->workbase_lock);
+
+	stratum_add_send(sdata, json_msg, client_id, SM_UPDATE);
+}
+
 /* Needs to be entered with client holding a ref count. */
 static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double diff, const bool valid,
 		       const bool submit)
@@ -5778,6 +5823,7 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	copy_tv(&client->ldc, &now_t);
 	client->diff_change_job_id = next_blockid;
 	stratum_send_diff(sdata, client);
+	stratum_send_update(sdata, client->id, true);
 	
 	/* Clamp to mindiff ~ network_diff */
 
@@ -6027,8 +6073,6 @@ static bool new_share(sdata_t *sdata, const uchar *hash, const int64_t wb_id)
 	}
 	return ret;
 }
-
-static void update_client(const stratum_instance_t *client, const int64_t client_id);
 
 /* Submit a share in proxy mode to the parent pool. workbase_lock is held.
  * Needs to be entered with client holding a ref count. */
@@ -6404,27 +6448,6 @@ out:
 	return json_boolean(result);
 }
 
-/* Must enter with workbase_lock held */
-static json_t *__stratum_notify(const workbase_t *wb, const bool clean)
-{
-	json_t *val;
-
-	JSON_CPACK(val, "{s:[ssssosssb],s:o,s:s}",
-			"params",
-			wb->idstring,
-			wb->prevhash,
-			wb->coinb1,
-			wb->coinb2,
-			json_deep_copy(wb->merkle_array),
-			wb->bbversion,
-			wb->nbit,
-			wb->ntime,
-			clean,
-			"id", json_null(),
-			"method", "mining.notify");
-	return val;
-}
-
 static void stratum_broadcast_update(sdata_t *sdata, const workbase_t *wb, const bool clean)
 {
 	json_t *json_msg;
@@ -6434,27 +6457,6 @@ static void stratum_broadcast_update(sdata_t *sdata, const workbase_t *wb, const
 	ck_runlock(&sdata->workbase_lock);
 
 	stratum_broadcast(sdata, json_msg, SM_UPDATE);
-}
-
-/* For sending a single stratum template update */
-static void stratum_send_update(sdata_t *sdata, const int64_t client_id, const bool clean)
-{
-	ckpool_t *ckp = sdata->ckp;
-	json_t *json_msg;
-
-	if (unlikely(!sdata->current_workbase)) {
-		if (!ckp->proxy)
-			LOGWARNING("No current workbase to send stratum update");
-		else
-			LOGDEBUG("No current workbase to send stratum update for client %"PRId64, client_id);
-		return;
-	}
-
-	ck_rlock(&sdata->workbase_lock);
-	json_msg = __stratum_notify(sdata->current_workbase, clean);
-	ck_runlock(&sdata->workbase_lock);
-
-	stratum_add_send(sdata, json_msg, client_id, SM_UPDATE);
 }
 
 /* Hold instance and workbase lock */
