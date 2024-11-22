@@ -5822,8 +5822,8 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	client->diff = optimal;
 	copy_tv(&client->ldc, &now_t);
 	client->diff_change_job_id = next_blockid;
-	stratum_send_diff(sdata, client);
 	stratum_send_update(sdata, client->id, true);
+	stratum_send_diff(sdata, client);
 	
 	/* Clamp to mindiff ~ network_diff */
 
