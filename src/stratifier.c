@@ -5801,7 +5801,7 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	}
 
 	// Clamp optimal difficulty to avoid sharp changes
-	double max_change_ratio = 2;
+	double max_change_ratio = 1.5;
 	double min_change_ratio = 0.5;
 	double max_diff = client->diff * max_change_ratio;
 	double min_diff = client->diff * min_change_ratio;
@@ -5827,7 +5827,8 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	client->diff_change_job_id = next_blockid;
 	stratum_send_update(sdata, client->id, true);
 	stratum_send_diff(sdata, client);
-	
+	stratum_send_update(sdata, client->id, true);
+
 	/* Clamp to mindiff ~ network_diff */
 
 	// /* Set to higher of pool mindiff and optimal */
