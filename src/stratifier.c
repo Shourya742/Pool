@@ -5801,10 +5801,13 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	}
 
 	// Clamp optimal difficulty to avoid sharp changes
-	double max_change_ratio = 1.2;
-	double min_change_ratio = 0.8;
+	double max_change_ratio = 2;
+	double min_change_ratio = 0.5;
 	double max_diff = client->diff * max_change_ratio;
 	double min_diff = client->diff * min_change_ratio;
+
+	optimal = MAX(optimal, min_diff);
+	optimal = MIN(optimal, max_diff);
 
 	optimal = MAX(optimal, ckp->mindiff);
 	optimal = MIN(optimal, ckp->maxdiff);
