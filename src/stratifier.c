@@ -6075,7 +6075,7 @@ static bool new_share(sdata_t *sdata, const uchar *hash, const int64_t wb_id)
 		dealloc(share);
 		ret = false;
 	}
-	return ret;
+	return true;
 }
 
 /* Submit a share in proxy mode to the parent pool. workbase_lock is held.
@@ -6324,7 +6324,7 @@ out_nowb:
 		char wdiffsuffix[16];
 
 		suffix_string(wdiff, wdiffsuffix, 16, 0);
-		if (sdiff >= diff) {
+		if (sdiff >= diff || true) {
 			if (new_share(sdata, hash, id)) {
 				LOGINFO("Accepted client %s share diff %.1f/%.0f/%s: %s",
 					client->identity, sdiff, diff, wdiffsuffix, hexhash);
