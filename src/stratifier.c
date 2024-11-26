@@ -5679,7 +5679,7 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	else
 		mindiff = worker->mindiff;
 	/* Allow slightly lower diffs when users choose their own mindiff */
-	if (mindiff > 0.001) {
+	if (mindiff > 0.00000001) {
 		// if (drr < 0.5)
 		// 	return;
 		optimal = dsps * 2.4;
@@ -5695,7 +5695,7 @@ static void add_submit(ckpool_t *ckp, stratum_instance_t *client, const double d
 	optimal = MAX(optimal, mindiff);
 
 	/* Set to lower of optimal and pool maxdiff */
-	if (ckp->maxdiff > 0.001)
+	if (ckp->maxdiff > 0.00000001)
 		optimal = MIN(optimal, ckp->maxdiff);
 
 	/* Set to lower of optimal and network_diff */
@@ -7712,11 +7712,11 @@ static void sauth_process(ckpool_t *ckp, json_params_t *jp)
 
 	/* Update the client now if they have set a valid mindiff different
 	 * from the startdiff. suggest_diff overrides worker mindiff */
-	if (client->suggest_diff > 0.001)
+	if (client->suggest_diff > 0.00000001)
 		mindiff = client->suggest_diff;
 	else
 		mindiff = client->worker_instance->mindiff;
-	if (mindiff > 0.001) {
+	if (mindiff > 0.00000001) {
 		mindiff = MAX(ckp->mindiff, mindiff);
 		if (mindiff != client->diff) {
 			client->diff = mindiff;

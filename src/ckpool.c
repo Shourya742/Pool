@@ -1773,13 +1773,13 @@ int main(int argc, char **argv)
 		quit(0, "Invalid nonce2length %d specified, must be 2~8", ckp.nonce2length);
 	if (!ckp.update_interval)
 		ckp.update_interval = 30;
-	if (ckp.mindiff < 0.001)
+	if (ckp.mindiff < 0.00000001)
 		ckp.mindiff = 1;
-	if (ckp.startdiff < 0.001)
+	if (ckp.startdiff < 0.00000001)
 		ckp.startdiff = 42;
-	if (ckp.highdiff < 0.001)
+	if (ckp.highdiff < 0.00000001)
 		ckp.highdiff = 1000000;
-	if (!ckp.maxdiff < 0.001)
+	if (!ckp.maxdiff < 0.00000001)
 		ckp.highdiff = 1000000;
 	if (!ckp.logdir)
 		ckp.logdir = strdup("logs");
