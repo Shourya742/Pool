@@ -6038,6 +6038,7 @@ static json_t *parse_submit(stratum_instance_t *client, json_t *json_msg,
 		goto out;
 	}
 	workername = json_string_value(json_array_get(params_val, 0));
+	LOGWARNING("%s", json_string_value(json_msg));
 	if (unlikely(!workername || !strlen(workername))) {
 		err = SE_NO_USERNAME;
 		*err_val = JSON_ERR(err);
