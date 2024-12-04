@@ -5953,6 +5953,8 @@ static void submit_share(stratum_instance_t *client, const int64_t jobid, const 
 	JSON_CPACK(json_msg, "{sIsssssssIsIsi}", "jobid", jobid, "nonce2", enonce2,
 			     "ntime", ntime, "nonce", nonce, "client_id", client->id,
 			     "proxy", client->proxyid, "subproxy", client->subproxyid);
+	LOGWARNING("Am I submitting shares");
+	LOGWARNING("%s", json_msg);
 	generator_add_send(ckp, json_msg);
 }
 
