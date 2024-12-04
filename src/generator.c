@@ -1684,6 +1684,7 @@ static void submit_share(gdata_t *gdata, json_t *val)
 	share_id = add_share(gdata, client_id, proxi->diff);
 	LOGWARNING("Share Id: %d", share_id);
 	json_set_int(val, "id", share_id);
+	LOGWARNING("message: %s", json_string_value(json_array_get(msg->json_msg, 0)));
 
 	/* Add the new message to the psend list */
 	mutex_lock(&gdata->psend_lock);
