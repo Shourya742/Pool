@@ -1682,7 +1682,7 @@ static void submit_share(gdata_t *gdata, json_t *val)
 	msg = ckzalloc(sizeof(stratum_msg_t));
 	msg->json_msg = val;
 	share_id = add_share(gdata, client_id, proxi->diff);
-	LOGWARING("Share Id: %d", share_id);
+	LOGWARNING("Share Id: %d", share_id);
 	json_set_int(val, "id", share_id);
 
 	/* Add the new message to the psend list */
