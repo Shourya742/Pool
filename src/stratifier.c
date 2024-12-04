@@ -2188,10 +2188,10 @@ static void submit_node_block(ckpool_t *ckp, sdata_t *sdata, json_t *val)
 		LOGWARNING("Failed to get jobid from node method block");
 		goto out;
 	}
-	if (unlikely(!json_get_double(&diff, val, "diff"))) {
-		LOGWARNING("Failed to get diff from node method block");
-		goto out;
-	}
+	// if (unlikely(!json_get_double(&diff, val, "diff"))) {
+	// 	LOGWARNING("Failed to get diff from node method block");
+	// 	goto out;
+	// }
 
 	if (!json_get_uint32(&version_mask, val, "version_mask")) {
 		/* No version mask is not fatal, assume it to be zero */
@@ -3122,8 +3122,8 @@ static void update_diff(ckpool_t *ckp, const char *cmd)
 
 	/* We only really care about integer diffs so clamp the lower limit to
 	 * 1 or it will round down to zero. */
-	if (unlikely(diff < 1))
-		diff = 1;
+	// if (unlikely(diff < 1))
+	// 	diff = 1;
 
 	dsdata = proxy->sdata;
 
@@ -3137,6 +3137,9 @@ static void update_diff(ckpool_t *ckp, const char *cmd)
 	dsdata->current_workbase->diff = proxy->diff = diff;
 	ck_wunlock(&dsdata->workbase_lock);
 
+
+	LOGWARNING("Proxy diff %f", old_diff);
+	LOGWARNING("Current difficulty %f", diff);
 	if (old_diff < diff)
 		return;
 
@@ -6082,6 +6085,8 @@ static json_t *parse_submit(stratum_instance_t *client, json_t *json_msg,
 	sscanf(job_id, "%lx", &id);
 	sscanf(ntime, "%x", &ntime32);
 
+	LOGWARNING("I am here in parsing share checkpoint 1");
+
 	share = true;
 
 	if (unlikely(!sdata->current_workbase))
@@ -6115,6 +6120,7 @@ static json_t *parse_submit(stratum_instance_t *client, json_t *json_msg,
 			nonce2[len] = '\0';
 		}
 	}
+	LOGWARNING("I am here in parsing share checkpoint 2");
 	/* Same with nonce, but we need at least 8 chars. We checked for this
 	 * earlier. */
 	len = 8;
@@ -6136,6 +6142,8 @@ static json_t *parse_submit(stratum_instance_t *client, json_t *json_msg,
 	}
 	bswap_256(sharehash, hash);
 	__bin2hex(hexhash, sharehash, 32);
+
+	LOGWARNING("I am here in parsing share checkpoint 3");
 
 	if (stale) {
 		/* Accept shares if they're received on remote nodes before the
@@ -6164,6 +6172,7 @@ no_stale:
 		goto out_put;
 	}
 	invalid = false;
+	LOGWARNING("I am here in parsing share checkpoint 4");
 out_submit:
 	if (sdiff >= wdiff)
 		submit = true;
@@ -6172,6 +6181,7 @@ out_submit:
 		LOGWARNING("Submitting possible block solve share diff %lf !", sdiff);
 		submit = true;
 	}
+	LOGWARNING("I am here in parsing share checkpoint 5");
 out_put:
 	put_workbase(sdata, wb);
 out_nowb:
@@ -6188,6 +6198,7 @@ out_nowb:
 				LOGWARNING("Accepted client %s share diff %.1f/%.0f/%s: %s",
 					client->identity, sdiff, diff, wdiffsuffix, hexhash);
 				result = true;
+				LOGWARNING("I am here in parsing share checkpoint 6");
 			} else {
 				err = SE_DUPE;
 				json_set_string(json_msg, "reject-reason", SHARE_ERR(err));
@@ -6207,11 +6218,14 @@ out_nowb:
 
 	/* Submit share to upstream pool in proxy mode. We submit valid and
 	 * stale shares and filter out the rest. */
+	LOGWARNING("I am here in parsing share checkpoint 7");
+	LOGWARNING("Proxy: %d, Submit: %d", wb->proxy, submit);
 	if (wb && wb->proxy && submit) {
 		LOGWARNING("Submitting share upstream: %s", hexhash);
 		submit_share(client, id, nonce2, ntime, nonce);
 	}
 
+	LOGWARNING("I am here in parsing share checkpoint 8");
 	add_submit(ckp, client, diff, result, submit);
 
 	/* Now write to the pool's sharelog. */
@@ -6891,10 +6905,10 @@ static void parse_remote_share(ckpool_t *ckp, sdata_t *sdata, json_t *val, const
 		LOGWARNING("Failed to get workername from remote message %s", buf);
 		return;
 	}
-	if (unlikely(!json_get_double(&diff, val, "diff") || diff < 1)) {
-		LOGWARNING("Unable to parse valid diff from remote message %s", buf);
-		return;
-	}
+	// if (unlikely(!json_get_double(&diff, val, "diff") || diff < 1)) {
+	// 	LOGWARNING("Unable to parse valid diff from remote message %s", buf);
+	// 	return;
+	// }
 	json_get_double(&sdiff, val, "sdiff");
 	user = generate_remote_user(ckp, workername);
 	user->authorised = true;
