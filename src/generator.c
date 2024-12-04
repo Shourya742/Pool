@@ -1682,6 +1682,7 @@ static void submit_share(gdata_t *gdata, json_t *val)
 	msg = ckzalloc(sizeof(stratum_msg_t));
 	msg->json_msg = val;
 	share_id = add_share(gdata, client_id, proxi->diff);
+	LOGWARING("Share Id: %d", share_id);
 	json_set_int(val, "id", share_id);
 
 	/* Add the new message to the psend list */
@@ -2010,8 +2011,9 @@ void generator_add_send(ckpool_t *ckp, json_t *val)
 {
 	gdata_t *gdata = ckp->gdata;
 	char *buf;
-
+	LOGWARNING("In generator checkpoint 1");
 	if (!ckp->passthrough) {
+		LOGWARNING("In generator checkpoint 2");
 		submit_share(gdata, val);
 		return;
 	}
@@ -3411,6 +3413,7 @@ void *generator(void *arg)
 		/* Wait for the stratifier to be ready for us */
 		while (!ckp->stratifier_ready)
 			cksleep_ms(10);
+		LOGWARNING("In proxy mode");
 		proxy_mode(ckp, pi);
 	} else
 		server_mode(ckp, pi);
