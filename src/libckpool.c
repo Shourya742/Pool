@@ -2051,8 +2051,8 @@ double sane_tdiff(tv_t *end, tv_t *start)
 {
 	double tdiff = tvdiff(end, start);
 
-	if (unlikely(tdiff < 0.001))
-		tdiff = 0.001;
+	if (unlikely(tdiff < 0.00000001))
+		tdiff = 0.00000001;
 	return tdiff;
 }
 
